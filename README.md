@@ -545,7 +545,7 @@ Already included:
 - bugfix, investigation, feature, refactor, PR-review, visual-bug, and
   sensitive-change workflows;
 - [RHO Lite](#rho-lite) retrospective harness improvement workflow;
-- MainVault project-memory scaffold;
+- MainVault project-memory template pack;
 - runtime evidence templates;
 - closure validation scripts;
 - closure hygiene audit script with triage mode;
@@ -791,8 +791,11 @@ Runtime artifacts should not be committed.
 
 `workflow/AgentOps/MainVault/` is the project memory layer.
 
-In this repository it starts as a clean scaffold. Fill it only with verified
-project facts:
+This repository ships a full MainVault template pack, not an empty directory.
+The files define where project knowledge belongs and how to promote lessons
+safely. They intentionally contain no private authoring-project facts.
+
+Fill them only with verified project facts:
 
 - architecture notes checked against code;
 - testing commands checked against package scripts;
