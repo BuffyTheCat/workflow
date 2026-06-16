@@ -1,0 +1,16 @@
+# Local AgentOps runtime artifacts.
+.DS_Store
+*.log
+
+AgentOps/Runtime/*
+!AgentOps/Runtime/.gitkeep
+!AgentOps/Runtime/README.md
+
+AgentOps/Runtime/imports/**
+AgentOps/Runtime/incidents/**
+
+AgentOps/RuntimeEvidence/runs/*
+!AgentOps/RuntimeEvidence/runs/README.md
+
+AgentOps/RuntimeEvidence/**/*.tmp
+AgentOps/RuntimeEvidence/**/*.log

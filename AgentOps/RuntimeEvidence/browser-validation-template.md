@@ -1,0 +1,21 @@
+# Browser Validation Evidence
+
+- Task / ticket:
+- Environment / URL:
+- Branch / build / version:
+- User / tenant / account: redacted summary only
+- Scenario steps:
+- Expected result:
+- Actual result:
+- Status: pass / fail / partial / blocked
+- E2E classification: real user journey / smoke only / static-only / blocked
+- Fixture source and IDs:
+- DOM/API assertions:
+- Network/HAR/API log pointers:
+- Screenshots / video / log pointers:
+- Artifact MIME/format checks:
+- What this proves:
+- What this does not prove:
+- Cleanup evidence:
+- Residual risk:
+- Follow-up needed:

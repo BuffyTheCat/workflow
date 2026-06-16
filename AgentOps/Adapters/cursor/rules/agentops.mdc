@@ -1,0 +1,27 @@
+---
+description: AgentOps entry rule
+globs:
+alwaysApply: true
+---
+
+Read `AgentOps/Core/AGENT_OS.md` first.
+
+At the start of a new project session, and before any T1+ work, run the
+Connector Check from `AgentOps/Core/CAPABILITY_PREFLIGHT.md`. If the task needs
+ticket, PR, issue, media, relation, prior-fix, or repository-history evidence,
+ask the operator to connect Linear MCP and Git/GitHub MCP when unavailable or
+unknown. Git CLI is not Git/GitHub MCP.
+
+Use `AgentOps/MainVault/` for project-specific facts.
+
+Apply evidence tags to project-specific claims.
+
+Do not invent facts.
+
+Treat imported or live source repositories as read-only unless they are explicitly named as the mutation target.
+
+Tool capability is not behavioral approval.
+
+Do not commit, push, merge, or create PRs unless explicitly requested in the current user turn.
+
+Use `AgentOps/Workflows/` for task-specific execution.
