@@ -20,13 +20,27 @@ bash workflow/install.sh --local-clone
 ```
 
 Then open the same project root in Codex, Claude, Cursor, or another supported
-agent and start with:
+agent.
+
+Optional first sanity prompt:
 
 ```text
 Read AGENTS.md and follow AgentOps for this task.
 ```
 
-That is enough for a personal/pilot setup.
+For normal work, short natural prompts are enough:
+
+```text
+Посмотри баг SR-12345
+```
+
+```text
+Вот ссылка на тикет: <paste Linear URL>
+```
+
+That is enough for a personal/pilot setup. The point of the workflow is that
+the operator should not need to manually spell out "read comments, inspect
+media, check related tickets, look at history" every time.
 
 If your team wants to commit the workflow into the project, use the submodule
 or vendor-copy modes below instead of `--local-clone`.
@@ -37,6 +51,7 @@ or vendor-copy modes below instead of `--local-clone`.
 - [Install Modes](#install-modes)
 - [What The Installer Changes](#what-the-installer-changes)
 - [First Agent Prompt](#first-agent-prompt)
+- [How People Actually Use It](#how-people-actually-use-it)
 - [Connectors And MCP](#connectors-and-mcp)
 - [What Is Inside](#what-is-inside)
 - [Workflow Stack](#workflow-stack)
@@ -192,19 +207,81 @@ bash workflow/install.sh --local-clone
 
 ## First Agent Prompt
 
-After installation, open the project root in your agent and use one of these:
+After installation, open the project root in your agent.
+
+Optional sanity prompt for a new repo/session:
 
 ```text
 Read AGENTS.md and follow AgentOps for this task.
 ```
 
+You do not need to repeat that every time if the agent runtime loads
+`AGENTS.md` / `CLAUDE.md` normally.
+
+## How People Actually Use It
+
+AgentOps is designed for casual operator prompts.
+
+You can write:
+
 ```text
-Use AgentOps. Investigate Linear ticket ABC-123 carefully. Do not mutate until
-the evidence gate is complete.
+Посмотри баг SR-12345
 ```
 
 ```text
-Use AgentOps. Implement this feature with a small diff and do not commit.
+Глянь SR-12345
+```
+
+```text
+Вот этот баг нужно разобрать хорошенько SR-12345
+```
+
+```text
+Следующий тикет SR-12345
+```
+
+```text
+Вот ссылка на Linear: <paste ticket URL>. Разбери, что там происходит.
+```
+
+```text
+Глянь этот PR: <paste PR URL>
+```
+
+```text
+Нужно добавить маленькую фичу: <short description>
+```
+
+The workflow should infer the process from the request:
+
+| What you write | What AgentOps should do |
+|---|---|
+| `Посмотри баг SR-12345` | Treat `SR-12345` as a tracker ID, emit Task Classification Gate, fetch ticket body/comments/media/relations, inspect code/history, then report or mutate only after gates. |
+| `Глянь этот PR <url>` | Use PR-review workflow, inspect diff/context, report findings first, and avoid unrelated rewrite suggestions. |
+| `Вот скрин, кнопка уехала` | Use visual-bug path when visual/runtime evidence matters; browser verification is expected when available and relevant. |
+| `Нужно добавить X` | Use feature workflow: read project context, find owner files, keep diff scoped, verify or explain missing verification. |
+| `Запусти RHO Lite` | Use RHO Lite workflow to mine prior run artifacts and propose harness improvements. |
+
+For bug/ticket work, the important contract is:
+
+- casual wording does not lower the tier;
+- a tracker ID creates a T2 floor automatically;
+- ticket body and comments are required evidence;
+- if ticket body/comments mention media, screenshots, videos, attachments, or
+  `[Image]`, media extraction must be attempted or the blocker must be recorded;
+- parent/child/related issues and sibling discovery are required when the
+  workflow triggers them;
+- prior same-ticket fixes and current branch/build/release state must be
+  checked when relevant;
+- root-cause claims before this evidence are workflow violations.
+
+If an agent answers a ticket prompt with a plausible narrative but did not read
+comments/media/relations/current code, treat that as a bad workflow run.
+
+When you want to be extra direct, this prompt is still fine:
+
+```text
+Read AGENTS.md and follow AgentOps for this task.
 ```
 
 The root entrypoints point agents into:
@@ -212,6 +289,10 @@ The root entrypoints point agents into:
 - `workflow/AgentOps/Adapters/codex/AGENTS.md`
 - `workflow/AgentOps/Adapters/claude/CLAUDE.md`
 - `workflow/AgentOps/Core/AGENT_OS.md`
+
+Those entrypoints are what make short prompts work. If the request mentions a
+bug, ticket, issue, regression, visual defect, "посмотри", "разбери", "глянь",
+or similar wording, AgentOps should enter the relevant workflow automatically.
 
 ## Connectors And MCP
 
@@ -304,29 +385,34 @@ basic use.
 
 ### Bug Investigation From Linear
 
-Prompt:
+Typical prompt:
 
 ```text
-Use AgentOps. Investigate Linear ABC-123 carefully. Read the issue, comments,
-parent/related issues, media, current code, and relevant history before
-proposing any mutation.
+Посмотри баг SR-12345
 ```
 
 Expected behavior:
 
 - agent emits Connector Check;
-- agent asks for Linear MCP if missing;
-- agent classifies task tier;
-- agent reads ticket evidence before root-cause claims;
+- agent asks for Linear MCP if the ticket cannot be read;
+- ticket ID sets a T2 floor automatically;
+- agent reads issue body and comments before root-cause claims;
+- if comments/body mention screenshots, videos, attachments, or `[Image]`,
+  agent must attempt media extraction or record the exact blocker;
+- agent checks parent/child/related issues when required by the workflow;
+- agent checks relevant current code and history before proposing a mutation;
 - agent records uncertainty and degraded mode;
 - agent proposes or applies a fix only after the evidence gate.
 
+You should not have to write "read the comments and media" manually. That is a
+workflow obligation once the task is a ticket/bug investigation.
+
 ### Small Feature
 
-Prompt:
+Typical prompt:
 
 ```text
-Use AgentOps. Add this small feature with minimal diff. Do not commit.
+Нужно добавить экспорт CSV в таблицу заказов
 ```
 
 Expected behavior:
@@ -339,11 +425,10 @@ Expected behavior:
 
 ### Visual Bug
 
-Prompt:
+Typical prompt:
 
 ```text
-Use AgentOps visual-bug workflow. Reproduce this layout issue in browser before
-declaring it fixed.
+Вот скрин, на мобилке кнопка уезжает за край. Посмотри.
 ```
 
 Expected behavior:
@@ -356,11 +441,10 @@ Expected behavior:
 
 ### PR Review
 
-Prompt:
+Typical prompt:
 
 ```text
-Use AgentOps PR-review workflow. Review this PR for bugs, regressions, missing
-tests, and risky assumptions.
+Глянь PR: <paste PR URL>
 ```
 
 Expected behavior:
@@ -372,11 +456,10 @@ Expected behavior:
 
 ### Sensitive Change
 
-Prompt:
+Typical prompt:
 
 ```text
-Use AgentOps sensitive-change workflow. This touches permissions. Treat it as
-high risk and do not mutate without a plan.
+Нужно поправить роли доступа для менеджеров
 ```
 
 Expected behavior:
@@ -401,18 +484,29 @@ workflow/AgentOps/RuntimeEvidence/runs/
 Run it with a prompt like:
 
 ```text
-Use AgentOps RHO Lite. Analyze prior runs in
-workflow/AgentOps/RuntimeEvidence/runs. Proposal-only: do not mutate Core,
-adapters, MainVault, app code, git, or external systems. Return candidate
-workflow improvements with evidence.
+Запусти РХО Лайт
+```
+
+Expected behavior:
+
+- agent reads `workflow/AgentOps/Workflows/rho-lite.md`;
+- agent audits prior runs under `workflow/AgentOps/RuntimeEvidence/runs/`;
+- agent classifies data safety before using prior artifacts;
+- agent proposes candidate harness improvements;
+- agent does not mutate Core, adapters, MainVault, app code, git, or external
+  systems unless you explicitly approve that boundary.
+
+If you want to be stricter:
+
+```text
+Запусти РХО Лайт proposal-only. Ничего не меняй, только дай рекомендации.
 ```
 
 If you want to allow a small safe change:
 
 ```text
-Use AgentOps RHO Lite. Analyze prior runs and apply only the selected low-risk
-helper-script or README improvement if the skeptic pass accepts it. Do not
-commit.
+Запусти РХО Лайт и примени только выбранное low-risk улучшение, если skeptic
+его принимает. Не коммить.
 ```
 
 What it does:
