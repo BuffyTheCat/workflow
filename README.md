@@ -48,6 +48,7 @@ or vendor-copy modes below instead of `--local-clone`.
 ## Table Of Contents
 
 - [What This Gives You](#what-this-gives-you)
+- [How AgentOps Works](#how-agentops-works)
 - [Install Modes](#install-modes)
 - [What The Installer Changes](#what-the-installer-changes)
 - [First Agent Prompt](#first-agent-prompt)
@@ -90,6 +91,213 @@ Core defaults:
 - project facts belong in `workflow/AgentOps/MainVault/`;
 - the agent must disclose degraded mode instead of pretending tools were
   available.
+
+## How AgentOps Works
+
+AgentOps turns a short human request into a risk-scaled operating mode.
+
+The operator can say:
+
+```text
+Посмотри баг SR-12345
+```
+
+The workflow expands that into:
+
+1. classify task risk;
+2. check tool/connectors;
+3. read the right evidence;
+4. select the right workflow;
+5. use project knowledge safely;
+6. challenge assumptions;
+7. verify or clearly disclose what was not verified;
+8. write an auditable run report when the task is non-trivial.
+
+### Tier Classification
+
+Classification is the first anti-drift mechanism. It decides how much evidence,
+skepticism, and verification the agent must use.
+
+| Tier | Meaning | Typical examples | Required behavior |
+|---|---|---|---|
+| `T0` | Chat / explain only | "What does this file do?", "summarize this idea" | No repo changes. Lightweight inline self-check. |
+| `T1` | Light localized task | copy tweak, tiny local change, narrow non-risky cleanup | Micro-hypothesis, targeted context, Skeptic-Lite, targeted verification. |
+| `T2` | Standard feature/fix | normal bugfix, feature work, ticket with no hard-case triggers | MainVault lookup, context scout, hypothesis matrix, verification, Skeptic-Lite or Strong Skeptic if triggered. |
+| `T3` | Bug / regression / shared logic | reopened bug, visual/runtime issue, parent/related tickets, prior fixes, shared component, branch/release ambiguity | Ticket archivist, git historian, vault researcher, hypothesis tournament, runtime/media evidence when relevant, Strong Skeptic, verifier. |
+| `T4` | Sensitive / critical | auth, billing, permissions, tenant isolation, migrations, data integrity, security, production config | Explicit human approval before writes, Strong Skeptic + Red Team, no degraded writes without explicit override. |
+| `T5` | Workflow maintenance | changes inside `AgentOps` itself | Preserve portability, avoid weakening evidence rules, update adapters from Core rather than inventing adapter-only behavior. |
+
+Operator wording cannot lower the tier. "Quick", "just look", "глянь",
+"посмотри", and "хорошенько" are treated as style, not risk evidence.
+
+Tracker IDs matter. A prompt containing `SR-12345`, a Jira key, or a GitHub
+issue/PR creates at least a `T2` floor. The task may escalate to `T3`/`T4` if
+the evidence shows reopened behavior, parent/related issues, media, runtime
+closure, prior fixes, cross-module impact, or sensitive surfaces.
+
+### Why Classification Matters
+
+Without classification, agents tend to do the same shallow thing for every
+request: read one file, guess the cause, patch something plausible, and declare
+success.
+
+Classification prevents that failure mode:
+
+- a simple copy edit stays light;
+- a ticketed bug cannot skip comments and media;
+- a visual/runtime bug cannot pretend static code reading proves UI closure;
+- a reopened or history-sensitive bug must check prior fixes and related
+  evidence;
+- a sensitive permission/auth/data change cannot be treated as a small diff
+  just because the patch is short.
+
+### Task Classification Gate
+
+For bug, investigation, visual, ticket, or regression work, the first visible
+agent output should be a `Task Classification Gate` before root-cause claims.
+
+For a ticket prompt, the expected shape is:
+
+```md
+Task Classification Gate
+- Initial classification: T2 floor because a tracker/ticket ID is present
+- Hard-case status: pending evidence
+- Evidence to collect before final classification: issue, comments/media, parent/related issues, prior fixes, current code, branch/build/release context
+```
+
+After evidence collection, the agent re-emits the gate with the final tier and
+hard-case triggers found or explicitly absent.
+
+### Knowledge Safe
+
+AgentOps has a deliberate knowledge-safety split:
+
+- `MainVault/` is the project knowledge safe.
+- `RuntimeEvidence/runs/**` is task-scoped evidence.
+- `Runtime/imports/**` is quarantine/reference material.
+
+This matters because not every useful observation should become project canon.
+
+`MainVault` should contain evidence-tagged, reusable project facts: architecture
+rules, domain behavior, testing commands, known regressions, common mistakes,
+and project-specific do/don't rules.
+
+Runtime evidence should contain task artifacts: ticket excerpts, command
+outputs, screenshots summaries, hypotheses, skeptic reviews, verification
+notes, and final reports.
+
+Promotion from task evidence into `MainVault` is intentionally gated. A lesson
+must be proposed, evidence-backed, reviewed, and accepted through the vault
+maintenance flow. This prevents one weird ticket or stale comment from becoming
+a permanent project rule.
+
+### Evidence Labels
+
+Project-specific claims should be labeled by source quality, for example:
+
+- `FACT_CODE`: current repository code;
+- `FACT_GIT`: git history, branch, diff, or commit evidence;
+- `FACT_TICKET`: ticket body, comments, relation, or status;
+- `FACT_MEDIA`: screenshot, video, or attachment evidence;
+- `FACT_RUNTIME`: observed local/browser/runtime behavior;
+- `FACT_VAULT`: already-canonical MainVault entry;
+- `INFERENCE`: reasoned conclusion from evidence;
+- `UNKNOWN` / `TODO_OPERATOR`: not verified yet.
+
+This makes the agent's answer auditable. A reader can tell the difference
+between "I saw this in code" and "I inferred this from a ticket".
+
+### Specialist Roles
+
+For non-trivial tasks, AgentOps decomposes work into roles. Depending on tier
+and runtime support, roles may be handled inline or by visible specialist
+passes/subagents.
+
+Common roles:
+
+- Ticket Archivist: issue body, comments, attachments, parent/related issues,
+  sibling discovery, prior ticket context.
+- Media Extractor / Media Analyst: screenshots, videos, attachments, image
+  extraction, visual evidence.
+- Code Scout: owner files, callers, tests, fixtures, implementation surface.
+- Git Historian / Code Archaeologist: prior fixes, blame chain, branch and
+  release context.
+- Vault Researcher / Context Guardian: relevant MainVault rules and constraints.
+- Hypothesis Tester / Challenger: competing explanations and fastest
+  falsifiers.
+- Browser / Visual QA: runtime reproduction and visual closure when relevant.
+- Verifier: tests, checks, runtime proof, or honest no-verification rationale.
+- Security Red-Team: sensitive `T4` surfaces.
+
+The important part is not ceremony. The important part is that the final answer
+cannot pretend those viewpoints happened if they were skipped, blocked, or only
+handled inline.
+
+### Skeptic Ladder
+
+Every task gets skepticism. The strength scales with tier and evidence.
+
+| Level | Used for | What it does |
+|---|---|---|
+| `Level 0` Inline Self-Skeptic | `T0` chat/explain | Quick self-check: did we answer the actual question, invent facts, or skip an obvious caveat? |
+| `Level 1` Skeptic-Lite | `T1` and bounded `T2` | Checks task fit, diff scope, weak tests, nearby regressions, and at least one disconfirming question. |
+| `Level 2` Strong Skeptic | triggered `T2`, normal `T3` | Attacks missed surfaces, wrong-axis tests, over/under-scoped fixes, history/Vault conflicts, and unproven runtime behavior. |
+| `Level 3` Strong Skeptic + Red Team | `T4` and sensitive work | Adds explicit adversarial review for auth, billing, permissions, tenant/data/security/production risks. |
+
+Skeptic is a gate, not decoration. `REVISE_REQUIRED` and `BLOCKED` are useful
+outcomes. The lead agent must answer objections with concrete evidence, not
+confidence.
+
+### Three-Agent Consensus Gate
+
+For hard-case `T3`/`T4` checkpoints, AgentOps can use three fresh critic passes
+when the runtime supports visible dispatch:
+
+- `Skeptic A — BREAK THE RESULT`: tries to prove the result is fake,
+  incomplete, or accidentally working.
+- `Skeptic B — CLAIMED VS REALITY`: compares every closure-critical claim
+  against code, diff, ticket/media/history, commands, and artifacts.
+- `Anti-Drift Guardian`: checks whether the work still matches the operator
+  goal and AgentOps boundary, with no scope creep or weakened criteria.
+
+This is not majority voting. Consensus means every `P0`/`P1` finding is fixed
+and rechecked, explicitly accepted as residual risk, or escalated to the
+operator. If visible subagents are unavailable, the workflow can fall back to
+separate inline lenses, but it must disclose the lost independence.
+
+### Runtime Evidence And Closure
+
+Non-trivial work leaves a run directory:
+
+```text
+workflow/AgentOps/RuntimeEvidence/runs/<YYYY-MM-DD-short-slug>/
+```
+
+That run directory can hold:
+
+- live status and progress beacons;
+- evidence ledger;
+- hypothesis matrix;
+- ticket/media/history packets;
+- skeptic review;
+- verification notes;
+- final report.
+
+The close-run scripts make drift visible. They cannot prove the agent did good
+work by themselves, but they can catch obvious contradictions: missing skeptic
+review, invalid verdict, unsafe actionable target, or stale closure shape.
+
+### Why This Feels Different From A Prompt
+
+AgentOps is not a single "be careful" instruction. It is a reusable harness:
+
+- entrypoints make short prompts work;
+- classification scales effort automatically;
+- MainVault protects project knowledge from stale memory;
+- RuntimeEvidence makes task work auditable;
+- specialist roles keep investigations from collapsing into one narrative;
+- skeptic gates attack false confidence;
+- RHO Lite can mine prior runs and improve the harness itself.
 
 ## Install Modes
 
