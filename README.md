@@ -10,7 +10,7 @@ Repository:
 - SSH: `git@github.com:BuffyTheCat/workflow.git`
 - HTTPS: `https://github.com/BuffyTheCat/workflow.git`
 
-## Fastest Install
+## Quick Start
 
 Run this from the root of the project where you want to use AgentOps:
 
@@ -31,11 +31,11 @@ Read AGENTS.md and follow AgentOps for this task.
 For normal work, short natural prompts are enough:
 
 ```text
-Посмотри баг SR-12345
+Take a look at bug SR-12345
 ```
 
 ```text
-Вот ссылка на тикет: <paste Linear URL>
+Here is the ticket link: <paste Linear URL>
 ```
 
 That is enough for a personal/pilot setup. The point of the workflow is that
@@ -99,7 +99,7 @@ AgentOps turns a short human request into a risk-scaled operating mode.
 The operator can say:
 
 ```text
-Посмотри баг SR-12345
+Take a look at bug SR-12345
 ```
 
 The workflow expands that into:
@@ -127,8 +127,8 @@ skepticism, and verification the agent must use.
 | `T4` | Sensitive / critical | auth, billing, permissions, tenant isolation, migrations, data integrity, security, production config | Explicit human approval before writes, Strong Skeptic + Red Team, no degraded writes without explicit override. |
 | `T5` | Workflow maintenance | changes inside `AgentOps` itself | Preserve portability, avoid weakening evidence rules, update adapters from Core rather than inventing adapter-only behavior. |
 
-Operator wording cannot lower the tier. "Quick", "just look", "глянь",
-"посмотри", and "хорошенько" are treated as style, not risk evidence.
+Operator wording cannot lower the tier. "Quick", "just look", "take a look",
+"check this", and "carefully" are treated as style, not risk evidence.
 
 Tracker IDs matter. A prompt containing `SR-12345`, a Jira key, or a GitHub
 issue/PR creates at least a `T2` floor. The task may escalate to `T3`/`T4` if
@@ -433,42 +433,42 @@ AgentOps is designed for casual operator prompts.
 You can write:
 
 ```text
-Посмотри баг SR-12345
+Take a look at bug SR-12345
 ```
 
 ```text
-Глянь SR-12345
+Check SR-12345
 ```
 
 ```text
-Вот этот баг нужно разобрать хорошенько SR-12345
+Please investigate bug SR-12345 carefully
 ```
 
 ```text
-Следующий тикет SR-12345
+Next ticket: SR-12345
 ```
 
 ```text
-Вот ссылка на Linear: <paste ticket URL>. Разбери, что там происходит.
+Here is the Linear link: <paste ticket URL>. Figure out what is going on.
 ```
 
 ```text
-Глянь этот PR: <paste PR URL>
+Review this PR: <paste PR URL>
 ```
 
 ```text
-Нужно добавить маленькую фичу: <short description>
+Add a small feature: <short description>
 ```
 
 The workflow should infer the process from the request:
 
 | What you write | What AgentOps should do |
 |---|---|
-| `Посмотри баг SR-12345` | Treat `SR-12345` as a tracker ID, emit Task Classification Gate, fetch ticket body/comments/media/relations, inspect code/history, then report or mutate only after gates. |
-| `Глянь этот PR <url>` | Use PR-review workflow, inspect diff/context, report findings first, and avoid unrelated rewrite suggestions. |
-| `Вот скрин, кнопка уехала` | Use visual-bug path when visual/runtime evidence matters; browser verification is expected when available and relevant. |
-| `Нужно добавить X` | Use feature workflow: read project context, find owner files, keep diff scoped, verify or explain missing verification. |
-| `Запусти RHO Lite` | Use RHO Lite workflow to mine prior run artifacts and propose harness improvements. |
+| `Take a look at bug SR-12345` | Treat `SR-12345` as a tracker ID, emit Task Classification Gate, fetch ticket body/comments/media/relations, inspect code/history, then report or mutate only after gates. |
+| `Review this PR <url>` | Use PR-review workflow, inspect diff/context, report findings first, and avoid unrelated rewrite suggestions. |
+| `Here is a screenshot: the button overflows on mobile` | Use visual-bug path when visual/runtime evidence matters; browser verification is expected when available and relevant. |
+| `Add X` | Use feature workflow: read project context, find owner files, keep diff scoped, verify or explain missing verification. |
+| `Run RHO Lite` | Use RHO Lite workflow to mine prior run artifacts and propose harness improvements. |
 
 For bug/ticket work, the important contract is:
 
@@ -499,8 +499,9 @@ The root entrypoints point agents into:
 - `workflow/AgentOps/Core/AGENT_OS.md`
 
 Those entrypoints are what make short prompts work. If the request mentions a
-bug, ticket, issue, regression, visual defect, "посмотри", "разбери", "глянь",
-or similar wording, AgentOps should enter the relevant workflow automatically.
+bug, ticket, issue, regression, visual defect, "take a look", "investigate",
+"check this", "debug", or similar wording, AgentOps should enter the relevant
+workflow automatically.
 
 ## Connectors And MCP
 
@@ -596,7 +597,7 @@ basic use.
 Typical prompt:
 
 ```text
-Посмотри баг SR-12345
+Take a look at bug SR-12345
 ```
 
 Expected behavior:
@@ -620,7 +621,7 @@ workflow obligation once the task is a ticket/bug investigation.
 Typical prompt:
 
 ```text
-Нужно добавить экспорт CSV в таблицу заказов
+Add CSV export to the orders table
 ```
 
 Expected behavior:
@@ -636,7 +637,7 @@ Expected behavior:
 Typical prompt:
 
 ```text
-Вот скрин, на мобилке кнопка уезжает за край. Посмотри.
+Here is a screenshot: on mobile the button overflows. Take a look.
 ```
 
 Expected behavior:
@@ -652,7 +653,7 @@ Expected behavior:
 Typical prompt:
 
 ```text
-Глянь PR: <paste PR URL>
+Review PR: <paste PR URL>
 ```
 
 Expected behavior:
@@ -667,7 +668,7 @@ Expected behavior:
 Typical prompt:
 
 ```text
-Нужно поправить роли доступа для менеджеров
+Update access roles for managers
 ```
 
 Expected behavior:
@@ -692,7 +693,7 @@ workflow/AgentOps/RuntimeEvidence/runs/
 Run it with a prompt like:
 
 ```text
-Запусти РХО Лайт
+Run RHO Lite
 ```
 
 Expected behavior:
@@ -707,14 +708,14 @@ Expected behavior:
 If you want to be stricter:
 
 ```text
-Запусти РХО Лайт proposal-only. Ничего не меняй, только дай рекомендации.
+Run RHO Lite proposal-only. Do not change anything; recommendations only.
 ```
 
 If you want to allow a small safe change:
 
 ```text
-Запусти РХО Лайт и примени только выбранное low-risk улучшение, если skeptic
-его принимает. Не коммить.
+Run RHO Lite and apply only the selected low-risk improvement if the skeptic
+accepts it. Do not commit.
 ```
 
 What it does:
