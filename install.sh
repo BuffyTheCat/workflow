@@ -4,7 +4,7 @@ set -euo pipefail
 usage() {
   cat <<'USAGE'
 Usage:
-  bash workflow/install.sh [--project-root /path/to/project] [--no-entrypoints]
+  bash workflow/install.sh [--project-root /path/to/project] [--no-entrypoints] [--local-clone]
 
 Default behavior assumes this package is placed at:
   <project-root>/workflow/
@@ -12,12 +12,19 @@ Default behavior assumes this package is placed at:
 The installer appends managed AgentOps blocks to project-root AGENTS.md,
 CLAUDE.md, and .gitignore. It does not touch application code and does not run
 git stage/commit/push.
+
+Options:
+  --local-clone      Also ignore the workflow folder itself in the parent
+                     project's .gitignore. Use this when you cloned this repo
+                     as a personal nested git repo, not as a submodule/vendor
+                     copy.
 USAGE
 }
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 project_root="$(cd "$script_dir/.." && pwd -P)"
 write_entrypoints=1
+ignore_workflow_folder=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -31,6 +38,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --no-entrypoints)
       write_entrypoints=0
+      shift
+      ;;
+    --local-clone)
+      ignore_workflow_folder=1
       shift
       ;;
     -h|--help)
@@ -117,6 +128,33 @@ append_gitignore_block() {
   echo "updated: $target_file (runtime-ignore)"
 }
 
+append_local_clone_ignore_block() {
+  local target_file="$1"
+  local begin_marker="BEGIN AgentOps managed block: local-clone-ignore"
+  local end_marker="END AgentOps managed block: local-clone-ignore"
+
+  if [[ "$workflow_rel" == "." ]]; then
+    echo "skipped: local-clone-ignore is not valid when workflow path is project root"
+    return 0
+  fi
+
+  if [[ -f "$target_file" ]] && grep -Fq "$begin_marker" "$target_file"; then
+    echo "already present: $target_file (local-clone-ignore)"
+    return 0
+  fi
+
+  mkdir -p "$(dirname "$target_file")"
+  {
+    if [[ -f "$target_file" && -s "$target_file" ]]; then
+      printf '\n'
+    fi
+    printf '# %s\n' "$begin_marker"
+    printf '%s/\n' "$workflow_rel"
+    printf '# %s\n' "$end_marker"
+  } >> "$target_file"
+  echo "updated: $target_file (local-clone-ignore)"
+}
+
 if [[ "$write_entrypoints" -eq 1 ]]; then
   append_managed_block \
     "$project_root/AGENTS.md" \
@@ -133,10 +171,15 @@ fi
 
 append_gitignore_block "$project_root/.gitignore"
 
+if [[ "$ignore_workflow_folder" -eq 1 ]]; then
+  append_local_clone_ignore_block "$project_root/.gitignore"
+fi
+
 cat <<EOF
 
 AgentOps workflow installed.
 - Project root: $project_root
 - Workflow path: $workflow_rel
+- Local clone ignore: $([[ "$ignore_workflow_folder" -eq 1 ]] && echo enabled || echo disabled)
 - Next: start the agent from the project root and connect Linear MCP plus Git/GitHub MCP when ticket, PR, or repository-history evidence is needed.
 EOF
